@@ -2,6 +2,11 @@ import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
 import userRoutes from "../backend/routes/user/userRoutes.js";
 import assessmentRoutes from "../backend/routes/assesment/assesmentRoutes.js";
 import { generateLearningPath } from "./controller/learningPathController.js";
@@ -9,10 +14,10 @@ import { startStudySession } from "./controller/studyController.js";
 
 dotenv.config();
 
-const app = express();
-
-app.use(express.json());
-app.use(cors());
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
 
 mongoose
   .connect(process.env.MONGODB_URI)

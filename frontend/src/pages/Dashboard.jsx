@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [domain, setDomain] = useState("");
   const [loading, setLoading] = useState(false);
@@ -92,6 +93,20 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper to navigate to Learning Path
+  const handleGeneratePath = () => {
+    if (!quizResult) return;
+
+    navigate("/learning-path", {
+      state: {
+        domain: domain,
+        // If they failed, nextLevel is just their current level (which is what we want)
+        // If they passed, nextLevel is the new higher level
+        level: quizResult.nextLevel,
+      },
+    });
   };
 
   return (
@@ -238,7 +253,9 @@ const Dashboard = () => {
                 <h2 className="text-2xl font-bold text-gray-800">
                   Level Failed
                 </h2>
-                <p className="text-red-500">Don't give up!</p>
+                <p className="text-red-500">
+                  Let's generate a study plan to master {quizResult.nextLevel}.
+                </p>
               </div>
             )}
 
@@ -262,26 +279,19 @@ const Dashboard = () => {
                 Back to Menu
               </button>
 
-              {quizResult.passed && quizResult.nextLevel !== "Completed" && (
-                // <button
-                //   onClick={() => handleStart(null)}
-                //   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-md transition-colors"
-                // >
-                //   Start {quizResult.nextLevel} Level &rarr;
-                // </button>
+              {/* UPDATED LOGIC: Button shows for BOTH passed and failed */}
+              {quizResult.nextLevel !== "Completed" && (
                 <button
-                  // UPDATE THIS ONCLICK:
-                  onClick={() =>
-                    navigate("/learning-path", {
-                      state: {
-                        domain: domain,
-                        level: quizResult.nextLevel, // e.g., "Intermediate"
-                      },
-                    })
-                  }
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-md transition-colors"
+                  onClick={handleGeneratePath}
+                  className={`px-6 py-2 rounded-lg font-medium shadow-md transition-colors text-white ${
+                    quizResult.passed
+                      ? "bg-blue-600 hover:bg-blue-700" // Blue for Advance
+                      : "bg-gray-800 hover:bg-gray-900" // Dark for Remedial
+                  }`}
                 >
-                  Generate {quizResult.nextLevel} Path &rarr;
+                  {quizResult.passed
+                    ? `Start ${quizResult.nextLevel} Journey \u2192`
+                    : `Generate ${quizResult.nextLevel} Study Plan \u2192`}
                 </button>
               )}
             </div>

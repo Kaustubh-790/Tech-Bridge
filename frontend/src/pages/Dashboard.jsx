@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -262,11 +263,25 @@ const Dashboard = () => {
               </button>
 
               {quizResult.passed && quizResult.nextLevel !== "Completed" && (
+                // <button
+                //   onClick={() => handleStart(null)}
+                //   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-md transition-colors"
+                // >
+                //   Start {quizResult.nextLevel} Level &rarr;
+                // </button>
                 <button
-                  onClick={() => handleStart(null)}
+                  // UPDATE THIS ONCLICK:
+                  onClick={() =>
+                    navigate("/learning-path", {
+                      state: {
+                        domain: domain,
+                        level: quizResult.nextLevel, // e.g., "Intermediate"
+                      },
+                    })
+                  }
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-md transition-colors"
                 >
-                  Start {quizResult.nextLevel} Level &rarr;
+                  Generate {quizResult.nextLevel} Path &rarr;
                 </button>
               )}
             </div>

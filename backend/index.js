@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import cors from "cors";
 import userRoutes from "../backend/routes/user/userRoutes.js";
 import assessmentRoutes from "../backend/routes/assesment/assesmentRoutes.js";
+import { generateLearningPath } from "./controller/learningPathController.js";
+import { startStudySession } from "./controller/studyController.js";
 
 dotenv.config();
 
@@ -19,6 +21,8 @@ mongoose
 
 app.use("/api/user", userRoutes);
 app.use("/api/assessment", assessmentRoutes);
+app.post("/api/learning-path", generateLearningPath);
+app.post("/api/study-video", startStudySession);
 
 app.get("/", (req, res) => {
   res.send("Tech Bridge API is running...");

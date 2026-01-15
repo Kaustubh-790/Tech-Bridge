@@ -12,13 +12,20 @@ const skillAssessmentSchema = new mongoose.Schema({
   },
   currentLevel: {
     type: String,
-    enum: ["Beginner", "Intermediate", "Advanced"],
+    enum: ["Beginner", "Intermediate", "Advanced", "Completed"],
     default: "Beginner",
+  },
+
+  currentSession: {
+    startTime: { type: Date, default: Date.now },
+    questions: [],
+    answers: [],
   },
   history: [
     {
       level: String,
       questions: Array,
+      answers: Array,
       score: Number,
       passed: Boolean,
       timestamp: { type: Date, default: Date.now },

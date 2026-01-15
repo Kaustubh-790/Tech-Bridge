@@ -15,20 +15,20 @@ const userSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    phone: {
-      type: String,
-      required: true,
-    },
-    domain: {
+    picture: {
       type: String,
     },
+    selectedDomain: {
+      type: String,
+    },
+
     createdAt: {
       type: Date,
       default: Date.now,
     },
   },
   {
-    timeseries: true,
+    timestamps: true,
     _id: false,
   }
 );

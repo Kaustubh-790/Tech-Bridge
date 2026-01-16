@@ -1,63 +1,108 @@
-import { YoutubeTranscript } from "youtube-transcript";
+import YoutubeTranscript from "youtube-transcript";
+import youtubeSr from "youtube-sr";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+// Extract CommonJS exports safely
+const { searchOne } = youtubeSr;
+
+// Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-export const startStudySession = async (req, res) => {
-  const { videoUrl } = req.body;
-
+const getStudyData = async (req, res) => {
   try {
-    // 1. Fetch Transcript
-    // logic: We try to get the transcript. If it fails (no captions), we error out.
-    let transcriptItems;
+    const { videoUrl } = req.body;
+
+    if (!videoUrl) {
+      return res.status(400).json({ error: "videoUrl is required" });
+    }
+
+    let videoId = "";
+    let finalVideoUrl = videoUrl;
+
+    // 1. Handle YouTube Search or Direct URL
+    if (videoUrl.includes("search_query")) {
+      const urlParams = new URLSearchParams(videoUrl.split("?")[1]);
+      const query = urlParams.get("search_query");
+
+      if (!query) {
+        return res.status(400).json({ error: "Invalid search query" });
+      }
+
+      // ✅ WORKS in Node 22
+      const searchResults = await searchOne(query);
+
+      if (!searchResults || !searchResults.id) {
+        return res.status(404).json({ error: "No video found" });
+      }
+
+      videoId = searchResults.id;
+      finalVideoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    } else {
+      const url = new URL(videoUrl);
+      videoId = url.searchParams.get("v");
+
+      if (!videoId) {
+        return res.status(400).json({ error: "Invalid YouTube URL" });
+      }
+    }
+
+    // 2. Fetch Transcript
+    let transcriptText = "";
+
     try {
-      transcriptItems = await YoutubeTranscript.fetchTranscript(videoUrl);
-    } catch (e) {
+      const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
+      transcriptText = transcriptItems.map((item) => item.text).join(" ");
+    } catch (err) {
+      console.error("Transcript Error:", err);
       return res.status(400).json({
-        message: "This video has no captions. Please choose another.",
+        error: "Could not fetch transcript. Video might not have captions.",
       });
     }
 
-    // 2. Process Text (Handle LONG videos)
-    // We take the first 40k characters (approx 45 mins of speaking) to stay fast.
-    const fullText = transcriptItems.map((item) => item.text).join(" ");
-    const safeText = fullText.substring(0, 40000) + "...";
+    // 3. Generate Summary & Quiz with Gemini
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // 3. AI Prompt (The "NotebookLM" Brain)
     const prompt = `
-      You are an AI Tutor. Analyze this video transcript:
-      "${safeText}"
+You are an expert tutor. Analyze the following video transcript and generate a study guide.
 
-      Tasks:
-      1. SUMMARIZE: Write a concise markdown summary of the core concepts.
-      2. QUIZ: Generate 3 multiple-choice questions (MCQ) to test understanding.
-      
-      Return JSON only:
-      {
-        "summary": "markdown string...",
-        "quiz": [
-          {
-            "question": "...",
-            "options": ["A", "B", "C", "D"],
-            "correctAnswer": "A",
-            "explanation": "Why it is correct..."
-          }
-        ]
-      }
-    `;
+Transcript:
+"${transcriptText.substring(0, 15000)}"
 
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: "application/json" },
+Task:
+1. Create a concise markdown summary of the key concepts.
+2. Create a quiz with 5 multiple-choice questions based on the content.
+
+Output must be strictly valid JSON with this structure:
+{
+  "summary": "markdown string...",
+  "quiz": [
+    {
+      "question": "string",
+      "options": ["string", "string", "string", "string"],
+      "correctAnswer": "string (must match one option)",
+      "explanation": "string"
+    }
+  ]
+}
+`;
+
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+
+    // Clean JSON markdown if present
+    const jsonString = responseText.replace(/```json|```/g, "").trim();
+    const studyData = JSON.parse(jsonString);
+
+    // 4. Send Response
+    res.json({
+      videoUrl: finalVideoUrl,
+      summary: studyData.summary,
+      quiz: studyData.quiz,
     });
-
-    const studyData = JSON.parse(result.response.text());
-
-    // Return data to Frontend to render the "Split Screen" Study Mode
-    res.status(200).json(studyData);
   } catch (error) {
-    console.error("Study session error:", error);
-    res.status(500).json({ message: "Failed to generate study material" });
+    console.error("Study Controller Error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+export default getStudyData;
